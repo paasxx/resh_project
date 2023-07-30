@@ -7,7 +7,7 @@ from django.contrib.auth.forms import UserCreationForm
 
 # Create your views here.
 
-def register(response):
+def registerPage(response):
     if response.method == "POST":
         form = RegisterForm(response.POST)
         if form.is_valid():
@@ -15,16 +15,21 @@ def register(response):
 
         else:
             pass
-            return redirect("*")
+            return HttpResponse("Dados inválidos")
 
         return redirect("home")
 
     else:
         form = RegisterForm()
 
-    return render(response, "account_creator/register.html", {"form":form})
+    context = { "form":form}
 
-    
+    return render(response, "account_creator/register.html", context)
+
+
+def loginPage(request):
+    context = {}
+    return render(request, "account_creator/login.html")
 
 def home(request):
-    return HttpResponse("Hello, welcome to your account creator!")
+    return render(request, "account_creator/home.html")

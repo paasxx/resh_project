@@ -2,18 +2,39 @@
 
 
 
-{% block title %}Create an Account{% endblock %}
-{% load crispy_forms_tags %}
-
-{% block content %}
-
-<form method="POST" class="form-group">
-    {% csrf_token %}
-    {{ form|crispy }}
-    <button type="submit" class="btn btn-success">Register</button>
-
-</form>
-
-
+{% block title %}
 
 {% endblock %}
+
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+<br>
+
+<div class="col d-flex justify-content-center">
+
+
+
+    <div class="form" style="width: 28rem;">
+
+        <form method="POST" class="form-group">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <button type="submit" class="btn btn-success" name="Create User">Register</button>
+
+        </form>
+
+    </div>
+
+
+
+
+
+
+</div>
+
+
+
+
+{% endblock %}s
