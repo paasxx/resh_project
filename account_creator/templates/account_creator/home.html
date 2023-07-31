@@ -9,5 +9,7 @@
 
 {% block content %}
 <p>Hello, {{request.user}} welcome to your account creator!</p>
+<p>{{request.user}}</p>
+<p>{{request.user.email}}</p>
 
 {% endblock %}
