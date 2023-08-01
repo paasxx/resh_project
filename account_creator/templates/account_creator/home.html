@@ -1,5 +1,7 @@
 {% extends 'account_creator/base.html'%}
 
+{% load crispy_forms_tags %}
+
 
 {% block title %}
 
@@ -9,7 +11,27 @@
 
 {% block content %}
 <p>Hello, {{request.user}} welcome to your account creator!</p>
-<p>{{request.user}}</p>
-<p>{{request.user.email}}</p>
+
+<div class="col d-flex justify-content-center">
+
+
+
+    <div class="form" style="width: 28rem;">
+
+        <form method="POST" class="form-group">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <button type="submit" class="btn btn-success" name="Create User">Register</button>
+
+        </form>
+
+    </div>
+
+
+
+
+
+
+</div>
 
 {% endblock %}
