@@ -3,7 +3,7 @@ from .forms import RegisterForm
 from django.contrib.auth import login, authenticate,logout
 from django.contrib.auth.forms import UserChangeForm
 from django.contrib.auth.models import User
-
+from django.http import HttpResponseRedirect
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -53,8 +53,19 @@ def loginPage(request):
             user = authenticate(request, username=username, password=password)
 
             if user is not None:
-                login(request, user)
-                return redirect('home')
+                #login(request, user)
+                #return redirect('home')
+
+                r = requests.post('http://127.0.0.1:8000/api-login-user/', data={'username': username, 'password': password})
+
+                if r.status_code == 200:
+                    response = r.json()
+                    token = response['jwt']
+
+                    # Save token to session
+                    request.session['api_token'] = token
+                    return redirect("home")
+       
             else:
                 messages.info(request, "Username OR password is incorrect!")
 
@@ -71,11 +82,18 @@ def logoutPage(request):
 
 
 
-@login_required(login_url = 'login')
+
 def home(request):
-    form = UserChangeForm(instance=request.user)
-    context= {"form":form}
-    return render(request, "account_creator/home.html", context)
+    # form = UserChangeForm(instance=request.user)
+    # context= {"form":form}
+    return render(request, "account_creator/home.html")
+
+#@login_required(login_url = 'login')
+# def home(request):
+#     response = requests.get("http://127.0.0.1:8000/api-get-user/")
+#     data = response.json()
+#     return render(request, "account_creator/home.html", {'data':data})
+
 
 
 
@@ -125,12 +143,11 @@ class LoginView(APIView):
                 response.data = {
                     'jwt': token
                 }
-                
-                return render(request, "account_creator/login.html", context=response.data)
-                #return response
+                return response
             
-        
         raise AuthenticationFailed("User not found!")
+
+
 
 class UserView(APIView):
     def get(self, request):
