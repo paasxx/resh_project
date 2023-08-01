@@ -7,7 +7,9 @@ urlpatterns = [
     path("register/", views.registerPage, name="register"),
     path("login/", views.loginPage, name="login" ),
     path("logout/", views.logoutPage, name="logout"),
-    path("create-user/", views.UserView.as_view(), name="create-user"),
-    path("get-user/", views.UserLoginView.as_view(), name="get-user"),
-    path("login-user/", views.UserLoginView.as_view(), name="login-user"),
+    
+    path("api-create-user/", views.RegisterView.as_view(), name="create-user"),
+    path("api-get-user/", views.UserView.as_view(), name="get-user"),
+    path("api-login-user/", views.LoginView.as_view(), name="login-user"),
+    path("api-logout-user/", views.LogoutView.as_view(), name="logout-user"),
 ]
