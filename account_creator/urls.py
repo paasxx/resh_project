@@ -5,7 +5,7 @@ from . import views
 urlpatterns = [
 
     # FrontEnd endpoints
-    path("", views.home, name="home"),
+    path("", views.updatePage, name="home"),
     path("register/", views.registerPage, name="register"),
     path("login/", views.loginPage, name="login" ),
     path("logout/", views.logoutPage, name="logout"),
@@ -15,5 +15,5 @@ urlpatterns = [
     path("api-get-user/", views.UserView.as_view(), name="get-user"),
     path("api-login-user/", views.LoginView.as_view(), name="login-user"),
     path("api-logout-user/", views.LogoutView.as_view(), name="logout-user"),
-    #path("api-home/", views.HomeView.as_view(), name="home-user"),
+    path("api-update-user/", views.UpdateUserView.as_view(), name="update-user"),
 ]

@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .forms import RegisterForm
+from .forms import RegisterForm,UpdateForm
 from django.contrib.auth import login, authenticate,logout
 from django.contrib.auth.forms import UserChangeForm
 from django.contrib.auth.models import User
@@ -22,10 +22,8 @@ import jwt,datetime, requests
 # Create your views here.
 
 def registerPage(request):
-    if request.user.is_authenticated:
-        return redirect('home')
-    else:
-        if request.method == "POST":
+
+    if request.method == "POST":
             form = RegisterForm(request.POST)
 
             username = request.POST.get('username')
@@ -43,27 +41,24 @@ def registerPage(request):
 
                 if r.status_code == 200:
                     response = r.json()
-
                     messages.success(request, "Account was created for " + username)
+                    print("Redirecting to Login")
                     return redirect('login')
             
             else:
                 context = {"form":form}
                 return render(request, "account_creator/register.html", context)
 
-        form = RegisterForm()
-        context = {"form":form}
-        return render(request, "account_creator/register.html", context)
+    form = RegisterForm()
+    context = {"form":form}
+    return render(request, "account_creator/register.html", context)
+        
 
 
 def loginPage(request):
 
-    print(request.session['api_token'] is not None)
-
-    if request.session['api_token'] is not None:
-        return redirect("home")
-    else:
-        if request.method == "POST":
+    if request.method == "POST":
+            print("Posted login data")
             username = request.POST.get('username')
             password = request.POST.get('password')
 
@@ -83,45 +78,73 @@ def loginPage(request):
                     request.session['user'] = username
 
                     # redirect keeps the session data
+                    print("redirecting home")
                     return redirect("home")
        
             else:
                 messages.info(request, "Username OR password is incorrect!")
 
-        context = {}
-        return render(request, "account_creator/login.html", context)
+    context = {}
+    return render(request, "account_creator/login.html", context)
+        
 
 
 def logoutPage(request):
 
     ### API connection ###
     r = requests.post('http://127.0.0.1:8000/api-logout-user/')
+    response = r.json()
 
     if r.status_code == 200:
         return redirect("login")
     
-   
+
+
+def updatePage(request):
+
+    username = request.POST.get('username')
+    password = request.POST.get('password')
+    print(username,password)
+
+    if request.method == "POST":
+            
+            print("Lets Change")
+            form = UpdateForm(instance=username)
+
     
-    
+            password = request.POST.get('password')
+            email = request.POST.get('email')
+            print(password,email)
+
+            if form.is_valid():
+
+                ### API connection ###
+                r = requests.post('http://127.0.0.1:8000/api-update-user/', 
+                                  data={ 
+                                      'email': email,
+                                      'password': password})
+
+                if r.status_code == 200:
+                    response = r.json()
+                    messages.success(request, "Account was updated for " )
+                    print("Redirecting to Login")
+                    return redirect('login')
+            
+            else:
+                context = {"form":form}
+                return render(request, "account_creator/home.html", context)
+
+    form = UpdateForm(instance = username)
+    context = {"form":form}
+    return render(request, "account_creator/home.html", context)
 
 
-# def changePassword(request):
 
 
-
-#@login_required(login_url='login')
 def home(request):
-    
-    # form = UserChangeForm(instance=request.user)
-    # context= {"form":form}
-    return render(request, "account_creator/home.html")
-
-#@login_required(login_url = 'login')
-# def home(request):
-#     response = requests.get("http://127.0.0.1:8000/api-get-user/")
-#     data = response.json()
-#     return render(request, "account_creator/home.html", {'data':data})
-
+    response = requests.get("http://127.0.0.1:8000/api-get-user/")
+    data = response.json()
+    return render(request, "account_creator/home.html", {'data':data})
 
 
 
@@ -195,6 +218,35 @@ class UserView(APIView):
         serializer = UserSerializer(user)
 
         return Response(serializer.data)
+    
+class UpdateUserView(APIView):
+    def put(self, request):
+
+        token = request.COOKIES.get('jwt')
+
+        if not token:
+            raise AuthenticationFailed('Unauthenticated!')
+        
+        try:
+            payload = jwt.decode(token, 'secret', algorithm=['HS256'])
+        except jwt.ExpiredSignatureError:
+            raise AuthenticationFailed('Unauthenticated!')
+
+        id = request.query_params["id"]
+        user_object = User.objects.get(id=id)
+
+        data = request.data
+
+        user_object.email = data["email"]
+        user_object.password = data["password"]
+      
+        user_object.save()
+
+        serializer = UserSerializer(user_object)
+        return Response(serializer.data)
+    
+        
+
 
 class LogoutView(APIView):
     def post(self, request):
