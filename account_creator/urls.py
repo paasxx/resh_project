@@ -15,4 +15,5 @@ urlpatterns = [
     path("api-get-user/", views.UserView.as_view(), name="get-user"),
     path("api-login-user/", views.LoginView.as_view(), name="login-user"),
     path("api-logout-user/", views.LogoutView.as_view(), name="logout-user"),
+    #path("api-home/", views.HomeView.as_view(), name="home-user"),
 ]

@@ -27,11 +27,25 @@ def registerPage(request):
     else:
         if request.method == "POST":
             form = RegisterForm(request.POST)
+
+            username = request.POST.get('username')
+            password = request.POST.get('password1')
+            email = request.POST.get('email')
+
             if form.is_valid():
-                form.save()
-                user = form.cleaned_data.get("username")
-                messages.success(request, "Account was created for " +user)
-                return redirect('login')
+
+                ### API connection ###
+                r = requests.post('http://127.0.0.1:8000/api-create-user/', 
+                                  data={
+                                      'username': username, 
+                                      'email': email,
+                                      'password': password})
+
+                if r.status_code == 200:
+                    response = r.json()
+
+                    messages.success(request, "Account was created for " + username)
+                    return redirect('login')
             
             else:
                 context = {"form":form}
@@ -44,26 +58,31 @@ def registerPage(request):
 
 def loginPage(request):
 
-    if request.user.is_authenticated:
-        return redirect('home')
+    print(request.session['api_token'] is not None)
+
+    if request.session['api_token'] is not None:
+        return redirect("home")
     else:
         if request.method == "POST":
             username = request.POST.get('username')
             password = request.POST.get('password')
+
             user = authenticate(request, username=username, password=password)
 
             if user is not None:
-                #login(request, user)
-                #return redirect('home')
 
+                ### API connection ###
                 r = requests.post('http://127.0.0.1:8000/api-login-user/', data={'username': username, 'password': password})
 
                 if r.status_code == 200:
                     response = r.json()
                     token = response['jwt']
-
+                                 
                     # Save token to session
                     request.session['api_token'] = token
+                    request.session['user'] = username
+
+                    # redirect keeps the session data
                     return redirect("home")
        
             else:
@@ -74,16 +93,25 @@ def loginPage(request):
 
 
 def logoutPage(request):
-    logout(request)
-    return redirect('login')
+
+    ### API connection ###
+    r = requests.post('http://127.0.0.1:8000/api-logout-user/')
+
+    if r.status_code == 200:
+        return redirect("login")
+    
+   
+    
+    
 
 
 # def changePassword(request):
 
 
 
-
+#@login_required(login_url='login')
 def home(request):
+    
     # form = UserChangeForm(instance=request.user)
     # context= {"form":form}
     return render(request, "account_creator/home.html")
@@ -139,9 +167,10 @@ class LoginView(APIView):
                 token = jwt.encode(payload, 'secret', algorithm='HS256').decode('utf-8')
                 response = Response()
                 response.set_cookie(key='jwt', value=token, httponly=True)
-
+                
                 response.data = {
-                    'jwt': token
+                    'jwt': token,
+                    'username': user_obj.username
                 }
                 return response
             
@@ -175,3 +204,7 @@ class LogoutView(APIView):
             "message": "success"
         }
         return response
+    
+# class HomeView(APIView):
+#     response = Response()
+#     return response
