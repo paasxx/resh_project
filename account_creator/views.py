@@ -1,21 +1,23 @@
 from django.shortcuts import render, redirect
 from .forms import RegisterForm,UpdateForm
 from django.contrib.auth import login, authenticate,logout
-from django.contrib.auth.forms import UserChangeForm
+from django.contrib.auth.forms import UserChangeForm,PasswordChangeForm
 from django.contrib.auth.models import User
-from django.http import HttpResponseRedirect
+from rest_framework import exceptions
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from rest_framework.authentication import get_authorization_header,TokenAuthentication,SessionAuthentication,BasicAuthentication
+
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.exceptions import AuthenticationFailed
-
+from rest_framework.exceptions import AuthenticationFailed,APIException
+from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
+from .authentication import create_access_token, create_refresh_token, decode_access_token, decode_refresh_token
 
-import jwt,datetime, requests
-
+import requests
 
 
 
@@ -70,12 +72,7 @@ def loginPage(request):
                 r = requests.post('http://127.0.0.1:8000/api-login-user/', data={'username': username, 'password': password})
 
                 if r.status_code == 200:
-                    response = r.json()
-                    token = response['jwt']
-                                 
-                    # Save token to session
-                    request.session['api_token'] = token
-                    request.session['user'] = username
+                  
 
                     # redirect keeps the session data
                     print("redirecting home")
@@ -102,39 +99,45 @@ def logoutPage(request):
 
 def updatePage(request):
 
-    username = request.POST.get('username')
-    password = request.POST.get('password')
-    print(username,password)
+    user = request.session['user']
+    # print(user)
+    # print(request.user)
 
     if request.method == "POST":
             
             print("Lets Change")
-            form = UpdateForm(instance=username)
-
-    
-            password = request.POST.get('password')
-            email = request.POST.get('email')
-            print(password,email)
-
+            form = PasswordChangeForm(user, request.POST)
+            
             if form.is_valid():
 
+                print("O form é validoo")
+
+                password = form.cleaned_data['password']
+                
                 ### API connection ###
                 r = requests.post('http://127.0.0.1:8000/api-update-user/', 
                                   data={ 
-                                      'email': email,
+                                      
                                       'password': password})
 
                 if r.status_code == 200:
                     response = r.json()
+                    token = response['jwt']
+                                 
+                    # Save token to session
+                    request.session['api_token'] = token
+
                     messages.success(request, "Account was updated for " )
                     print("Redirecting to Login")
                     return redirect('login')
             
             else:
+                print("O form n é validoo")
                 context = {"form":form}
                 return render(request, "account_creator/home.html", context)
 
-    form = UpdateForm(instance = username)
+
+    form = PasswordChangeForm(user)
     context = {"form":form}
     return render(request, "account_creator/home.html", context)
 
@@ -142,8 +145,11 @@ def updatePage(request):
 
 
 def home(request):
+    print("Trying to Access api")
     response = requests.get("http://127.0.0.1:8000/api-get-user/")
+    
     data = response.json()
+    print(data)
     return render(request, "account_creator/home.html", {'data':data})
 
 
@@ -167,83 +173,76 @@ class RegisterView(APIView):
     
 class LoginView(APIView):
     
-    def post(self, request, format=None):
-        user_password = User.objects.filter(password=request.data['password']).first()
-        user_username = User.objects.filter(username=request.data['username']).first()
-        user_obj = user_password or user_username
+    #permission_classes = [IsAuthenticated]
+    def post(self, request):
+        user = User.objects.filter(username=request.data['username']).first()
+        
 
-        if user_obj is not None:
-            credentials = {
-                'username': user_obj.username,
-                'password': request.data['password'] 
-            }
-            user = authenticate(**credentials)
+        if not user:
+            raise APIException("User not found!")
+        
+        if not user.check_password(request.data['password']):
+            raise APIException("User not found!")
+           
+        access_token = create_access_token(user.id)
+        refresh_token = create_refresh_token(user.id)
 
-            if user and user.is_active:
+        response = Response()
 
-                payload ={
-                    'id': user.id,
-                    'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60),
-                    'iat': datetime.datetime.utcnow()
-                }
+        response.set_cookie(key='refreshToken', value=refresh_token, httponly=True)
+        response.data = {
+            'token': access_token
+        }
 
-                token = jwt.encode(payload, 'secret', algorithm='HS256').decode('utf-8')
-                response = Response()
-                response.set_cookie(key='jwt', value=token, httponly=True)
-                
-                response.data = {
-                    'jwt': token,
-                    'username': user_obj.username
-                }
-                return response
-            
-        raise AuthenticationFailed("User not found!")
-
+        return response
+    
 
 
 class UserView(APIView):
+    #permission_classes = [IsAuthenticated]
+    authentication_classes = (TokenAuthentication,)
     def get(self, request):
+        auth = get_authorization_header(request).split()
 
-        token = request.COOKIES.get('jwt')
+        if auth and len(auth)==2:
 
-        if not token:
-            raise AuthenticationFailed('Unauthenticated!')
-        
-        try:
-            payload = jwt.decode(token, 'secret', algorithm=['HS256'])
-        except jwt.ExpiredSignatureError:
-            raise AuthenticationFailed('Unauthenticated!')
-        
-        user = User.objects.filter(id=payload['id']).first()
-        serializer = UserSerializer(user)
+            token = auth[1].decode('utf-8')
+            id = decode_access_token(token)
+            
 
-        return Response(serializer.data)
+            user = User.objects.filter(pk=id).first()
+
+            return Response(UserSerializer(user).data)
+
+        raise AuthenticationFailed('Unauthenticated')
     
-class UpdateUserView(APIView):
-    def put(self, request):
+    
+# class UpdateUserView(APIView):
+#     def put(self, request):
 
-        token = request.COOKIES.get('jwt')
+#         token = request.COOKIES.get('jwt')
 
-        if not token:
-            raise AuthenticationFailed('Unauthenticated!')
+#         if not token:
+#             raise AuthenticationFailed('Unauthenticated!')
         
-        try:
-            payload = jwt.decode(token, 'secret', algorithm=['HS256'])
-        except jwt.ExpiredSignatureError:
-            raise AuthenticationFailed('Unauthenticated!')
+#         try:
+#             payload = jwt.decode(token, 'secret', algorithm=['HS256'])
+#         except jwt.ExpiredSignatureError:
+#             raise AuthenticationFailed('Unauthenticated!')
 
-        id = request.query_params["id"]
-        user_object = User.objects.get(id=id)
+#         id = request.query_params["id"]
+#         user_object = User.objects.get(id=id)
 
-        data = request.data
+#         data = request.data
 
-        user_object.email = data["email"]
-        user_object.password = data["password"]
+#         #user_object.email = data["email"]
+#         user_object.password = data["password"]
       
-        user_object.save()
+#         user_object.save()
 
-        serializer = UserSerializer(user_object)
-        return Response(serializer.data)
+#         serializer = UserSerializer(user_object)
+#         return Response(serializer.data)
+    
     
         
 
