@@ -136,12 +136,13 @@ CRISPY_ALLOWED_TEMPLATE_PACK="bootstrap5"
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
-         'rest_framework.permissions.AllowAny',
-        
-    )
-    
-
+        'rest_framework.permissions.AllowAny',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+    ),
 }
+
 
 # REST_FRAMEWORK = {
 #     'DEFAULT_PERMISSION_CLASSES': (

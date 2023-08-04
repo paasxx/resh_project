@@ -9,9 +9,9 @@ from django.contrib.auth.password_validation import validate_password
 
 class UserSerializer(ModelSerializer):
 
-    # email = EmailField(required=True, validators=[UniqueValidator(queryset=User.objects.all())])
-    # username = CharField(required=True, max_length = 32, validators=[UniqueValidator(queryset=User.objects.all())])
-    # password = CharField( required=True, min_length = 8, write_only=False)
+    email = EmailField(required=True, validators=[UniqueValidator(queryset=User.objects.all())])
+    username = CharField(required=True, max_length = 32, validators=[UniqueValidator(queryset=User.objects.all())])
+    password = CharField( required=True, min_length = 8, write_only=False)
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
