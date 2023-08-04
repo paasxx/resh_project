@@ -63,7 +63,7 @@ def loginPage(request):
             if user is not None:
                 ### API connection ###
                 r = requests.post('http://127.0.0.1:8000/api-login-user/', data={'username': username, 'password': password})
-                print()
+                
                 if r.status_code == 200:
                     token = json.loads(r.content.decode("UTF-8")).get('token') 
                     request.session['token'] = token
@@ -233,9 +233,9 @@ class RegisterView(APIView):
       
         if user_serializer.is_valid(raise_exception=False):
             user_serializer.save()
-            return Response({"user":user_serializer.data}, status=200, content_type=json)
+            return Response({"user":user_serializer.data}, status=200)
         
-        return Response({"msg":"ERR"}, status=400, content_type=json)
+        return Response({"msg":"ERR"}, status=400)
     
 
     
@@ -251,11 +251,15 @@ class LoginView(APIView):
            
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
-        response = Response( content_type=json)
+        response = Response()
         response.set_cookie(key='refreshToken', value=refresh_token, httponly=True)
+        print(access_token)
         response.data = {
             'token': access_token
         }
+        print(response.data['token'])
+
+     
 
         return response
     
@@ -265,12 +269,13 @@ class UserView(APIView):
     
     def get(self, request):
         auth = request.session['token']
+        print(auth)
 
         if auth:
             id = decode_access_token(auth)
             user = User.objects.filter(pk=id).first()
 
-            return Response(UserSerializer(user).data, content_type=json)
+            return Response(UserSerializer(user).data)
 
         raise AuthenticationFailed('Unauthenticated')
     
@@ -291,7 +296,7 @@ class UpdatePasswordUserView(APIView):
         user_object.password = make_password(data["password"])
         user_object.save()
         serializer = UserSerializer(user_object)
-        return Response(serializer.data, content_type=json)
+        return Response(serializer.data)
 
 
 class UpdateEmailUserView(APIView):
@@ -307,13 +312,13 @@ class UpdateEmailUserView(APIView):
         user_object.email = (data["new_email"])
         user_object.save()
         serializer = UserSerializer(user_object)
-        return Response(serializer.data, content_type=json)
+        return Response(serializer.data)
     
     
         
 class LogoutView(APIView):
     def post(self, request):
-        response = Response(content_type=json)
+        response = Response()
         response.delete_cookie('token')
         request.session['token']=''
         response.data = {
@@ -331,7 +336,7 @@ class DeleteUserView(APIView):
             id = decode_access_token(auth)
             user = User.objects.filter(pk=id).first()
             user.delete()
-            return Response({"result":"user deleted"}, content_type=json)
+            return Response({"result":"user deleted"})
         
         else:
             raise AuthenticationFailed('Unauthenticated!')
