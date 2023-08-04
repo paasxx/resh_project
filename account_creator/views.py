@@ -5,7 +5,7 @@ from django.contrib.auth.forms import AuthenticationForm,PasswordChangeForm
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from django.contrib import messages
-
+from django.http import JsonResponse
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -38,7 +38,7 @@ def registerPage(request):
                                       'password': password})
 
                 if r.status_code == 200:
-                    response = r.json()
+               
                     messages.success(request, "Account was created for " + username)
                     print("Redirecting to Login")
                     return redirect('login')
@@ -63,7 +63,7 @@ def loginPage(request):
             if user is not None:
                 ### API connection ###
                 r = requests.post('http://127.0.0.1:8000/api-login-user/', data={'username': username, 'password': password})
-
+                print()
                 if r.status_code == 200:
                     token = json.loads(r.content.decode("UTF-8")).get('token') 
                     request.session['token'] = token
@@ -233,9 +233,9 @@ class RegisterView(APIView):
       
         if user_serializer.is_valid(raise_exception=False):
             user_serializer.save()
-            return Response({"user":user_serializer.data}, status=200)
+            return Response({"user":user_serializer.data}, status=200, content_type=json)
         
-        return Response({"msg":"ERR"}, status=400)
+        return Response({"msg":"ERR"}, status=400, content_type=json)
     
 
     
@@ -251,7 +251,7 @@ class LoginView(APIView):
            
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
-        response = Response()
+        response = Response( content_type=json)
         response.set_cookie(key='refreshToken', value=refresh_token, httponly=True)
         response.data = {
             'token': access_token
@@ -270,7 +270,7 @@ class UserView(APIView):
             id = decode_access_token(auth)
             user = User.objects.filter(pk=id).first()
 
-            return Response(UserSerializer(user).data)
+            return Response(UserSerializer(user).data, content_type=json)
 
         raise AuthenticationFailed('Unauthenticated')
     
@@ -291,7 +291,7 @@ class UpdatePasswordUserView(APIView):
         user_object.password = make_password(data["password"])
         user_object.save()
         serializer = UserSerializer(user_object)
-        return Response(serializer.data)
+        return Response(serializer.data, content_type=json)
 
 
 class UpdateEmailUserView(APIView):
@@ -307,13 +307,13 @@ class UpdateEmailUserView(APIView):
         user_object.email = (data["new_email"])
         user_object.save()
         serializer = UserSerializer(user_object)
-        return Response(serializer.data)
+        return Response(serializer.data, content_type=json)
     
     
         
 class LogoutView(APIView):
     def post(self, request):
-        response = Response()
+        response = Response(content_type=json)
         response.delete_cookie('token')
         request.session['token']=''
         response.data = {
@@ -331,7 +331,7 @@ class DeleteUserView(APIView):
             id = decode_access_token(auth)
             user = User.objects.filter(pk=id).first()
             user.delete()
-            return Response({"result":"user deleted"})
+            return Response({"result":"user deleted"}, content_type=json)
         
         else:
             raise AuthenticationFailed('Unauthenticated!')
