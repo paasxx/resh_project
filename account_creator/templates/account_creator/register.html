@@ -45,7 +45,7 @@
 
         .login_btn {
             width: 100%;
-            background: #e88325 !important;
+            background: #0fbf61d4 !important;
             color: white !important;
         }
 
@@ -63,7 +63,7 @@
         }
 
         .input-group-text {
-            background: #11ab85 !important;
+            background: #23c16dd4 !important;
             color: white !important;
             border: 0 !important;
             border-radius: 0.25rem 0 0 0.25rem !important;
@@ -128,15 +128,28 @@
                 </div>
 
 
+                <div class="d-flex justify-content-center form_container">
+                    {% for field in form %}
+                    {% if field.errors %}
+                    <div class="alert alert-warning" role="alert">
+                        {{ field.label }}:{{field.errors|striptags }}
+                    </div>{% endif %}
+                    {% endfor %}
+                </div>
 
-                {% for field in form %}
-                {% if field.errors %}<p id="messages">{{ field.label }}: {{ field.errors|striptags }}</p>{% endif %}
-                {% endfor %}
+                <div class="d-flex justify-content-center form_container">
 
-                {% for message in messages %}
-                <p id="messages"> {{message}}</p>
-                {% endfor %}
+                    {% if messages %}
 
+                    {% for message in messages %}
+                    <div class="alert alert-warning" role="alert">
+                        {{message}}
+                    </div>
+
+                    {% endfor %}
+                    {% endif %}
+
+                </div>
 
 
                 <div class="mt-4">

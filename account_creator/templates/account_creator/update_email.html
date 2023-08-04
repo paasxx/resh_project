@@ -19,16 +19,14 @@
 
     <div class="form" style="width: 28rem;">
 
-        <div>
-            <form method="POST" class="form-group">
-                {% csrf_token %}
-                {{ form|crispy }}
-                <button type="submit" class="btn btn-success" name="Create User">Confirm</button>
+        <form method="POST" class="form-group">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <button type="submit" class="btn btn-success" name="Create User">Register</button>
 
-            </form>
-        </div>
+        </form>
 
-        <div class="container-fluid">
+        <div class="d-flex justify-content-center form_container">
 
             {% if messages %}
 
@@ -42,9 +40,7 @@
 
         </div>
 
-
     </div>
-
 
 
 

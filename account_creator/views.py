@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
-from .forms import RegisterForm,RemoveUser
+from .forms import RegisterForm,ChangeEmailForm
 from django.contrib.auth import login, authenticate,logout
-from django.contrib.auth.forms import UserChangeForm,PasswordChangeForm
+from django.contrib.auth.forms import AuthenticationForm,PasswordChangeForm,UserChangeForm
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
@@ -30,6 +30,7 @@ import base64
 # Create your views here.
 
 def registerPage(request):
+    
 
     if request.method == "POST":
             form = RegisterForm(request.POST)
@@ -98,112 +99,185 @@ def loginPage(request):
 
 def logoutPage(request):
 
-    ### API connection ###
-    r = requests.post('http://127.0.0.1:8000/api-logout-user/', cookies=request.COOKIES)
-    
-    if r.status_code == 200:
-        return redirect("login")
+    if request.session['token']!="":
+
+        ### API connection ###
+        r = requests.post('http://127.0.0.1:8000/api-logout-user/', cookies=request.COOKIES)
+        
+        if r.status_code == 200:
+            return redirect("login")
+        
+    else:
+
+        return redirect('login')
     
 
 
 def updatePasswordPage(request):
 
+    if request.session['token']!="":
 
-    response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
-    data_user = response.json()
-    userName = User.objects.filter(username=data_user['username']).first()
+        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
+        data_user = response.json()
+        userName = User.objects.filter(username=data_user['username']).first()
 
 
-    if request.method == "POST":
-            form = PasswordChangeForm(user =userName, data=request.POST)
+        if request.method == "POST":
+                form = PasswordChangeForm(user =userName, data=request.POST)
+        
+                if form.is_valid():
+
+                    if userName.check_password(form.cleaned_data['old_password']):
+                     
+
+                        password = form.cleaned_data['new_password1']
+
+
+                        ### API connection ###
+                        r = requests.put('http://127.0.0.1:8000/api-update-password-user/', cookies=request.COOKIES,
+                                        data={ 
+                                            
+                                            'password': password})
+
+                       
+                        messages.success(request, "Password updated!" )
+                        print("Redirecting to Login")
+                        return redirect('login')
+                        
+                    else:
+
+                        messages.error(request, "Old password is Wrong!" )
+
+                
+                else:
+                    
+                    print("O form n é validoo")
+                    context = {"form":form}
+                    return render(request, "account_creator/update.html", context)
+
+
+        form = PasswordChangeForm(user= userName)
+        context = {"form":form}
+        return render(request, "account_creator/update.html", context)
     
-            if form.is_valid():
+    else:
 
-                print("O form é validoo")
-
-                password = form.cleaned_data['new_password1']
+        return redirect('login')
 
 
-                ### API connection ###
-                r = requests.put('http://127.0.0.1:8000/api-update-user/', cookies=request.COOKIES,
-                                  data={ 
-                                      
-                                      'password': password})
 
-                if r.status_code == 200:
-                    # PEGA O TOKEN DA RESPOSTA DE 'api-login-user' 
-                    token = json.loads(r.content.decode("UTF-8")).get('token')
-                    # COLOCA O TOKEN NA SESSÃO bruno
-                    request.session['token'] = token
-                    # redirect keeps the session data
+def updateEmailPage(request):
 
-                    messages.success(request, "Account was updated for " )
-                    print("Redirecting to Login")
-                    return redirect('login')
-            
-            else:
-                print(form.errors)
-                print("O form n é validoo")
-                context = {"form":form}
-                return render(request, "account_creator/update.html", context)
+    if request.session['token']!="":
+
+        
+        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
+        data_user = response.json()
+        userName = User.objects.filter(username=data_user['username']).first()
+        previous_email = userName.email
+
+        
 
 
-    form = PasswordChangeForm(userName)
-    context = {"form":form}
-    return render(request, "account_creator/update.html", context)
+        if request.method == "POST":
+                form = ChangeEmailForm( data=request.POST)
+        
+                if form.is_valid():
 
+
+                    if form.cleaned_data['previous_email'] == previous_email:
+
+                        new_email = form.cleaned_data['new_email']
+
+                        ### API connection ###
+                        r = requests.put('http://127.0.0.1:8000/api-update-email-user/', cookies=request.COOKIES,
+                                        data={ 
+                                            
+                                            'new_email': new_email})
+
+                        if r.status_code == 200:
+                            # PEGA O TOKEN DA RESPOSTA DE 'api-login-user' 
+                            token = json.loads(r.content.decode("UTF-8")).get('token')
+                            # COLOCA O TOKEN NA SESSÃO bruno
+                            request.session['token'] = token
+                            # redirect keeps the session data
+
+                            messages.success(request, "Email was updated!" )
+                            print("Redirecting to Login")
+                            return redirect('login')
+                        
+                    else:
+                        messages.error(request, "Previous email is wrong!" )
+                
+                else:
+                    
+                    print("O form n é validoo")
+                    context = {"form":form}
+                    return render(request, "account_creator/update_email.html", context)
+
+
+        form = ChangeEmailForm()
+        context = {"form":form}
+        return render(request, "account_creator/update_email.html", context)
+    
+    else:
+
+        return redirect('login')
 
 
 
 def home(request):
-    response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
-    data = response.json()
-    return render(request, "account_creator/home.html", {'data':data})
+
+    if request.session['token']!="":
+
+        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
+        data = response.json()
+        return render(request, "account_creator/home.html", {'data':data})
+    
+    else:
+        return redirect('login')
+
 
 
 def deletePage(request):
-    print("Delete")
+   
+    if request.session['token']!="":
 
-    #response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
-    #data_user = response.json()
-    #userName = User.objects.filter(username=data_user['username']).first()
 
-    if request.method == "POST":
-            form = RemoveUser(data=request.POST)
+        if request.method == "POST":
+                form = AuthenticationForm(data=request.POST)
 
-            if form.is_valid():
+                if form.is_valid():
 
-                username = request.POST.get('username')
-                password = request.POST.get('password')
+                    username = request.POST.get('username')
+                    password = request.POST.get('password')
 
-                user = authenticate(request, username=username, password=password)
+                    user = authenticate(request, username=username, password=password)
 
-                if user:
+                    if user:
 
-                        ### API connection ###
-                        r = requests.delete('http://127.0.0.1:8000/api-delete-user/', cookies=request.COOKIES)
+                            ### API connection ###
+                            r = requests.delete('http://127.0.0.1:8000/api-delete-user/', cookies=request.COOKIES)
 
-                        if r.status_code == 200:
-                            messages.success(request, "Account was Deleted " )
-                            return redirect('register')
+                            if r.status_code == 200:
+                                messages.success(request, "Account was Deleted!" )
+                                return redirect('register')
+                    else:
+                        messages.error(request, "Verify Username and Password" )
+                
                 else:
-                    messages.error(request, "Verify Username and Password" )
-            
-            else:
-                print(form.errors)
-                context = {"form":form}
-                return render(request, "account_creator/delete.html", context)
+                    
+                    context = {"form":form}
+                    return render(request, "account_creator/delete.html", context)
 
-    print("form deu pau")
-    form = RemoveUser()
-    context = {"form":form}
-    return render(request, "account_creator/delete.html", context)
+        
+        form = AuthenticationForm()
+        context = {"form":form}
+        return render(request, "account_creator/delete.html", context)
+    
+    else:
 
-    # response = requests.delete("http://127.0.0.1:8000/api-delete-user/", cookies=request.COOKIES)
-    # data = response.json()
-    # print(data)
-    # return render(request, "account_creator/home.html", {'data':data})
-
+        return redirect('login')
 
 
 ## API Functions
@@ -282,6 +356,29 @@ class UpdatePasswordUserView(APIView):
 
         #user_object.email = data["email"]
         user_object.password = make_password(data["password"])
+      
+        user_object.save()
+
+        serializer = UserSerializer(user_object)
+        return Response(serializer.data)
+    
+class UpdateEmailUserView(APIView):
+    def put(self, request):
+
+        token = request.session['token']
+
+        if not token:
+            raise AuthenticationFailed('Unauthenticated!')
+        
+        id = decode_access_token(token)
+
+        user_object = User.objects.get(id=id)
+
+        data = request.data
+        print(data)
+
+        #user_object.email = data["email"]
+        user_object.email = (data["new_email"])
       
         user_object.save()
 

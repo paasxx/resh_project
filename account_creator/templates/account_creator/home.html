@@ -10,28 +10,19 @@
 
 
 {% block content %}
-
-<p>Your data is: , {{request.session.username}} </p>
-
+<br>
+<br>
 
 <div class="col d-flex justify-content-center">
+    <div class="card text-center" style="width: 18rem;">
+        <div class="card-body">
+            <h5 class="card-title">Account Manager</h5>
+            <p class="card-text">Welcome {{request.session.username}}! Here you can, change personal information and
+                delete your account in navabar!</p>
 
-
-
-    <div class="form" style="width: 28rem;">
-
-        <form method="POST" class="form-group">
-            {% csrf_token %}
-
-        </form>
-
+        </div>
     </div>
-
-
-
-
-
-
 </div>
+
 
 {% endblock %}
