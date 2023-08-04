@@ -29,10 +29,13 @@
                         <a class="nav-link" href="/">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/login">Login</a>
+                        <a class="nav-link" href="/updateEmail">Change Email</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/update">Change Password</a>
+                        <a class="nav-link" href="/updatePassword">Change Password</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/delete">Delete Account</a>
                     </li>
                 </ul>
 
@@ -41,7 +44,7 @@
 
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" id="hello-msg">Hello, {{request.session.user}}</a>
+                        <a class="nav-link" id="hello-msg">Hello, {{request.session.username}}</a>
                     </li>
 
                     <li class="nav-item">

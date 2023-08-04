@@ -1,9 +1,10 @@
 from django.shortcuts import render, redirect
-from .forms import RegisterForm,UpdateForm
+from .forms import RegisterForm,RemoveUser
 from django.contrib.auth import login, authenticate,logout
 from django.contrib.auth.forms import UserChangeForm,PasswordChangeForm
+from django import forms
 from django.contrib.auth.models import User
-from rest_framework import exceptions
+from django.contrib.auth.hashers import make_password
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -64,6 +65,7 @@ def registerPage(request):
 
 def loginPage(request):
 
+
     if request.method == "POST":
             print("Posted login data")
             username = request.POST.get('username')
@@ -81,6 +83,7 @@ def loginPage(request):
                     token = json.loads(r.content.decode("UTF-8")).get('token')
                     # COLOCA O TOKEN NA SESSÃO 
                     request.session['token'] = token
+                    request.session['username'] = username
                     # redirect keeps the session data
                     print("redirecting home")
                     return redirect("home")
@@ -96,15 +99,14 @@ def loginPage(request):
 def logoutPage(request):
 
     ### API connection ###
-    r = requests.post('http://127.0.0.1:8000/api-logout-user/')
-    response = r.json()
-
+    r = requests.post('http://127.0.0.1:8000/api-logout-user/', cookies=request.COOKIES)
+    
     if r.status_code == 200:
         return redirect("login")
     
 
 
-def updatePage(request):
+def updatePasswordPage(request):
 
 
     response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
@@ -154,12 +156,53 @@ def updatePage(request):
 
 
 def home(request):
-    print("Trying to Access api")
-
     response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
     data = response.json()
-    print(data)
     return render(request, "account_creator/home.html", {'data':data})
+
+
+def deletePage(request):
+    print("Delete")
+
+    #response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
+    #data_user = response.json()
+    #userName = User.objects.filter(username=data_user['username']).first()
+
+    if request.method == "POST":
+            form = RemoveUser(data=request.POST)
+
+            if form.is_valid():
+
+                username = request.POST.get('username')
+                password = request.POST.get('password')
+
+                user = authenticate(request, username=username, password=password)
+
+                if user:
+
+                        ### API connection ###
+                        r = requests.delete('http://127.0.0.1:8000/api-delete-user/', cookies=request.COOKIES)
+
+                        if r.status_code == 200:
+                            messages.success(request, "Account was Deleted " )
+                            return redirect('register')
+                else:
+                    messages.error(request, "Verify Username and Password" )
+            
+            else:
+                print(form.errors)
+                context = {"form":form}
+                return render(request, "account_creator/delete.html", context)
+
+    print("form deu pau")
+    form = RemoveUser()
+    context = {"form":form}
+    return render(request, "account_creator/delete.html", context)
+
+    # response = requests.delete("http://127.0.0.1:8000/api-delete-user/", cookies=request.COOKIES)
+    # data = response.json()
+    # print(data)
+    # return render(request, "account_creator/home.html", {'data':data})
 
 
 
@@ -223,7 +266,7 @@ class UserView(APIView):
         raise AuthenticationFailed('Unauthenticated')
     
     
-class UpdateUserView(APIView):
+class UpdatePasswordUserView(APIView):
     def put(self, request):
 
         token = request.session['token']
@@ -232,13 +275,13 @@ class UpdateUserView(APIView):
             raise AuthenticationFailed('Unauthenticated!')
         
         id = decode_access_token(token)
-        
+
         user_object = User.objects.get(id=id)
 
         data = request.data
 
         #user_object.email = data["email"]
-        user_object.password = data["password"]
+        user_object.password = make_password(data["password"])
       
         user_object.save()
 
@@ -251,13 +294,35 @@ class UpdateUserView(APIView):
 
 class LogoutView(APIView):
     def post(self, request):
+        
         response = Response()
-        response.delete_cookie('jwt')
+        
+        response.delete_cookie('token')
+        request.session['token']=''
         response.data = {
             "message": "success"
         }
         return response
     
-# class HomeView(APIView):
-#     response = Response()
-#     return response
+class DeleteUserView(APIView):
+
+    def delete(self, request):
+
+        auth = request.session['token']
+        print(auth)
+
+        if auth:
+            # PODE SER PASSADO DIRETO PARA ESSE DECODE.
+            id = decode_access_token(auth)
+
+            user = User.objects.filter(pk=id).first()
+
+            
+            user.delete()
+
+            return Response({"result":"user deleted"})
+        
+        else:
+                  
+            raise AuthenticationFailed('Unauthenticated!')
+    

@@ -133,6 +133,10 @@
                 {% if field.errors %}<p id="messages">{{ field.label }}: {{ field.errors|striptags }}</p>{% endif %}
                 {% endfor %}
 
+                {% for message in messages %}
+                <p id="messages"> {{message}}</p>
+                {% endfor %}
+
 
 
                 <div class="mt-4">
