@@ -2,6 +2,7 @@ import jwt, datetime
 from rest_framework import exceptions
 
 
+
 def create_access_token(id):
     return jwt.encode({
         'user_id': id,

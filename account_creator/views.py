@@ -2,16 +2,20 @@ from django.shortcuts import render, redirect
 from .forms import RegisterForm,ChangeEmailForm
 from django.contrib.auth import  authenticate
 from django.contrib.auth.forms import AuthenticationForm,PasswordChangeForm
-from django.contrib.auth.models import User
+from .models import User
 from django.contrib.auth.hashers import make_password
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse,HttpResponseRedirect
+from rest_framework.authentication import get_authorization_header, TokenAuthentication
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import AuthenticationFailed,APIException
 from .serializers import UserSerializer
 from .authentication import create_access_token, create_refresh_token, decode_access_token
+from rest_framework.settings import api_settings
+
+
 
 import requests
 import json
@@ -53,8 +57,9 @@ def registerPage(request):
 
 
 def loginPage(request):
+
     if request.method == "POST":
-            print("Posted login data")
+            
             username = request.POST.get('username')
             password = request.POST.get('password')
 
@@ -68,9 +73,14 @@ def loginPage(request):
                     token = json.loads(r.content.decode("UTF-8")).get('token') 
                     request.session['token'] = token
                     request.session['username'] = username
+                    
                     # redirect keeps the session data
-                    print("redirecting home")
-                    return redirect("home")
+                    #print(token)
+                    response = redirect("home")
+                
+                    response.headers["Authorization"] =  "Bearer "+ token
+
+                    return response
        
             else:
                 messages.info(request, "Username OR password is incorrect!")
@@ -83,10 +93,15 @@ def loginPage(request):
 def logoutPage(request):
     if request.session['token']!="":
 
+        token = request.session['token']
+        headers = {"Authorization": "Bearer "+ token }
+        
         ### API connection ###
-        r = requests.post('http://127.0.0.1:8000/api-logout-user/', cookies=request.COOKIES)
+        r = requests.post('http://127.0.0.1:8000/api-logout-user/')
+
 
         if r.status_code == 200:
+            request.session['token']=''
             return redirect("login")
         
     else:
@@ -96,7 +111,11 @@ def logoutPage(request):
 
 def updatePasswordPage(request):
     if request.session['token']!="":
-        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
+
+        token = request.session['token']
+        headers = {"Authorization": "Bearer "+ token }
+
+        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES, headers = headers)
         data_user = response.json()
         userName = User.objects.filter(username=data_user['username']).first()
 
@@ -110,11 +129,17 @@ def updatePasswordPage(request):
                         password = form.cleaned_data['new_password1']
 
                         ### API connection ###
-                        r = requests.put('http://127.0.0.1:8000/api-update-password-user/', cookies=request.COOKIES,
-                                        data={'password': password})
+                        r = requests.put('http://127.0.0.1:8000/api-update-password-user/',
+                                        data={'old_password':form.cleaned_data['old_password'],
+                                              'new_password1': password,
+                                              'new_password2': password},
+                                        headers = headers)
+                        
+                        if r.status_code == 200:
+                    
+                            messages.success(request, "Password updated!" )
+                            return redirect('login')
 
-                        messages.success(request, "Password updated!" )
-                        return redirect('login')
                         
                     else:
                         messages.error(request, "Old password is Wrong!" )
@@ -136,26 +161,33 @@ def updatePasswordPage(request):
 def updateEmailPage(request):
     if request.session['token']!="":
 
-        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
+        token = request.session['token']
+        headers = {"Authorization": "Bearer "+ token }
+
+        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES, headers=headers)
         data_user = response.json()
         userName = User.objects.filter(username=data_user['username']).first()
         previous_email = userName.email
+
+        print(userName,previous_email)
 
         if request.method == "POST":
                 form = ChangeEmailForm( data=request.POST)
         
                 if form.is_valid():
-
+                    print("form e valido")
                     if form.cleaned_data['previous_email'] == previous_email:
                         new_email = form.cleaned_data['new_email']
+                        print(token, headers)
 
                         ### API connection ###
-                        r = requests.put('http://127.0.0.1:8000/api-update-email-user/', cookies=request.COOKIES,
-                                        data={'new_email': new_email})
+                        r = requests.put("http://127.0.0.1:8000/api-update-email-user/",
+                                         data={'previous_email': previous_email,'new_email': new_email}, 
+                                         headers = headers
+                                         )
 
                         if r.status_code == 200:
-                            token = json.loads(r.content.decode("UTF-8")).get('token')
-                            request.session['token'] = token
+                    
                             messages.success(request, "Email was updated!" )
                             return redirect('login')
                         
@@ -163,9 +195,10 @@ def updateEmailPage(request):
                         messages.error(request, "Previous email is wrong!" )
                 
                 else:
+                    print("form n valido")
                     context = {"form":form}
                     return render(request, "account_creator/update_email.html", context)
-
+        print("POST n valido")
         form = ChangeEmailForm()
         context = {"form":form}
         return render(request, "account_creator/update_email.html", context)
@@ -178,8 +211,12 @@ def updateEmailPage(request):
 
 def home(request):
     if request.session['token']!="":
+   
+        token = request.session['token']
+        headers = {"Authorization": "Bearer "+ token }
+        
 
-        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES)
+        response = requests.get("http://127.0.0.1:8000/api-get-user/", cookies=request.COOKIES, headers = headers )
         data = response.json()
         return render(request, "account_creator/home.html", {'data':data})
     
@@ -190,7 +227,9 @@ def home(request):
 def deletePage(request):
     if request.session['token']!="":
 
-
+        token = request.session['token']
+        headers = {"Authorization": "Bearer "+ token }
+        
         if request.method == "POST":
                 form = AuthenticationForm(data=request.POST)
 
@@ -203,7 +242,7 @@ def deletePage(request):
                     if user:
 
                             ### API connection ###
-                            r = requests.delete('http://127.0.0.1:8000/api-delete-user/', cookies=request.COOKIES)
+                            r = requests.delete('http://127.0.0.1:8000/api-delete-user/', headers = headers)
 
                             if r.status_code == 200:
                                 messages.success(request, "Account was Deleted!" )
@@ -238,8 +277,9 @@ class RegisterView(APIView):
         return Response({"msg":"ERR"}, status=400)
     
 
-    
+ 
 class LoginView(APIView):
+
     def post(self, request):
         user = User.objects.filter(username=request.data['username']).first()
 
@@ -253,26 +293,24 @@ class LoginView(APIView):
         refresh_token = create_refresh_token(user.id)
         response = Response()
         response.set_cookie(key='refreshToken', value=refresh_token, httponly=True)
-        print(access_token)
         response.data = {
             'token': access_token
         }
-        print(response.data['token'])
-
-     
 
         return response
     
 
-
+ 
 class UserView(APIView):
-    
-    def get(self, request):
-        auth = request.session['token']
-        print(auth)
 
-        if auth:
-            id = decode_access_token(auth)
+    def get(self, request):
+        auth = get_authorization_header(request).split()
+        
+
+        if auth and len(auth) == 2:
+            token = auth[1].decode('utf-8')
+
+            id = decode_access_token(token)
             user = User.objects.filter(pk=id).first()
 
             return Response(UserSerializer(user).data)
@@ -283,44 +321,50 @@ class UserView(APIView):
 class UpdatePasswordUserView(APIView):
     def put(self, request):
 
-        token = request.session['token']
+        auth = get_authorization_header(request).split()
 
-        if not token:
-            raise AuthenticationFailed('Unauthenticated!')
-        
-        id = decode_access_token(token)
-        user_object = User.objects.get(id=id)
+        if auth and len(auth) == 2:
+            token = auth[1].decode('utf-8')
 
-        data = request.data
+            if not token:
+                raise AuthenticationFailed('Unauthenticated!')
+            
+            id = decode_access_token(token)
+            user_object = User.objects.get(id=id)
 
-        user_object.password = make_password(data["password"])
-        user_object.save()
-        serializer = UserSerializer(user_object)
-        return Response(serializer.data)
+            data = request.data
+
+            user_object.password = make_password(data["new_password1"])
+            user_object.save()
+            serializer = UserSerializer(user_object)
+            return Response(serializer.data)
 
 
 class UpdateEmailUserView(APIView):
     def put(self, request):
-        token = request.session['token']
-
-        if not token:
-            raise AuthenticationFailed('Unauthenticated!')
+        auth = get_authorization_header(request).split()
         
-        id = decode_access_token(token)
-        user_object = User.objects.get(id=id)
-        data = request.data
-        user_object.email = (data["new_email"])
-        user_object.save()
-        serializer = UserSerializer(user_object)
-        return Response(serializer.data)
+        if auth and len(auth) == 2:
+            token = auth[1].decode('utf-8')
+
+            if not token:
+                raise AuthenticationFailed('Unauthenticated!')
+        
+            id = decode_access_token(token)
+            user_object = User.objects.get(id=id)
+            data = request.data
+            user_object.email = (data["new_email"])
+            user_object.save()
+            serializer = UserSerializer(user_object)
+            return Response(serializer.data)
     
     
         
 class LogoutView(APIView):
     def post(self, request):
+        
         response = Response()
-        response.delete_cookie('token')
-        request.session['token']=''
+        
         response.data = {
             "message": "success"
         }
@@ -329,11 +373,12 @@ class LogoutView(APIView):
 
 class DeleteUserView(APIView):
     def delete(self, request):
-        auth = request.session['token']
-        print(auth)
 
-        if auth:
-            id = decode_access_token(auth)
+        auth = get_authorization_header(request).split()
+
+        if auth and len(auth) == 2:
+            token = auth[1].decode('utf-8')
+            id = decode_access_token(token)
             user = User.objects.filter(pk=id).first()
             user.delete()
             return Response({"result":"user deleted"})

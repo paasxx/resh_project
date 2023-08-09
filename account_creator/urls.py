@@ -15,8 +15,8 @@ urlpatterns = [
     
     # API endpoints
     path("api-create-user/", views.RegisterView.as_view(), name="create-user"),
-    path("api-get-user/", views.UserView.as_view(), name="get-user"),
     path("api-login-user/", views.LoginView.as_view(), name="login-user"),
+    path("api-get-user/", views.UserView.as_view(), name="get-user"),
     path("api-logout-user/", views.LogoutView.as_view(), name="logout-user"),
     path("api-update-password-user/", views.UpdatePasswordUserView.as_view(), name="update-password-user"),
     path("api-update-email-user/", views.UpdateEmailUserView.as_view(), name="update-email-user"),

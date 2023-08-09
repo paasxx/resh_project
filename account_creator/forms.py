@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import User
+from .models import User
 
 class RegisterForm(UserCreationForm):
     email = forms.EmailField()
@@ -21,5 +21,4 @@ class ChangeEmailForm(forms.Form):
     previous_email= forms.CharField(widget=forms.EmailInput)
     new_email = forms.CharField(widget=forms.EmailInput)
 
-    class Meta:
-        model = User
+   
