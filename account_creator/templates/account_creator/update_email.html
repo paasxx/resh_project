@@ -24,6 +24,8 @@
             <h3>
                 <p style="text-align: left;">Update Email</p>
             </h3>
+
+
             {% csrf_token %}
             {{ form|crispy }}
             <button type="submit" class="btn btn-success" name="Create User">Register</button>
